@@ -1,92 +1,118 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local Camera = workspace.CurrentCamera
-local LocalPlayer = Players.LocalPlayer
 
-_G.SilentAim = false
-_G.ESPEnabled = false
-_G.FOVCircleVisible = false
-_G.FOV = 150
-_G.AimbotDistance = 500
+local Window = Rayfield:CreateWindow({
+    Name = "🍊 APELSIN HUB PRO",
+    LoadingTitle = "Apelsin Hub Loading...",
+    LoadingSubtitle = "by Apelsin",
+    Theme = "Default"
+})
 
--- FOV Круг
-local Circle = Drawing.new("Circle")
-Circle.Thickness = 1
-Circle.NumSides = 64
-Circle.Filled = false
-Circle.Visible = false
-Circle.Color = Color3.fromRGB(255, 255, 255)
+local MainTab = Window:CreateTab("Main", nil) -- Вкладка Main
 
--- ESP Линии (вместо квадратов)
-local ESP_Lines = {}
-
-local function UpdateESP()
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-            if not ESP_Lines[player] then
-                local line = Drawing.new("Line")
-                line.Visible = false
-                line.Thickness = 1
-                ESP_Lines[player] = line
-            end
-            
-            local line = ESP_Lines[player]
-            local rootPart = player.Character.HumanoidRootPart
-            local pos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
-            
-            -- Логика: только враги, не в лобби
-            if _G.ESPEnabled and onScreen and player.Team ~= LocalPlayer.Team then
-                line.Visible = true
-                line.Color = Color3.fromRGB(255, 50, 50) -- Только красный
-                line.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y) -- Из центра низа экрана
-                line.To = Vector2.new(pos.X, pos.Y)
-            else
-                line.Visible = false
-            end
-        elseif ESP_Lines[player] then
-            ESP_Lines[player]:Remove()
-            ESP_Lines[player] = nil
-        end
-    end
-end
-
--- Silent Aim для Murder Duels
-local mt = getrawmetatable(game)
-local oldNamecall = mt.__namecall
-setreadonly(mt, false)
-mt.__namecall = newcclosure(function(self, ...)
-    local args = {...}
-    -- Murder Duels часто использует "Shoot" или другие эвенты. 
-    -- Если не работает, замени "WeaponEvent" на имя эвента стрельбы.
-    if _G.SilentAim and getnamecallmethod() == "FireServer" then
-        local target = nil
-        local dist = _G.FOV
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") and p.Team ~= LocalPlayer.Team then
-                local pos, onScreen = Camera:WorldToViewportPoint(p.Character.Head.Position)
-                local d = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                if onScreen and d < dist then target = p.Character.Head; dist = d end
+-- 1. Instant Win
+MainTab:CreateButton({
+    Name = "⚡ Instant Win",
+    Callback = function()
+        local root = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if root then
+            local target = workspace:GetChildren()[9]
+            if target and target:FindFirstChildOfClass("Model") then root.CFrame = target:GetPivot() end
+            task.wait(1)
+            if workspace:FindFirstChild("Scripted") and workspace.Scripted:FindFirstChild("VaultStart") then
+                fireproximityprompt(workspace.Scripted.VaultStart.ProximityPrompt)
             end
         end
-        if target then args[1] = target.Position end
-    end
-    return oldNamecall(self, unpack(args))
-end)
-setreadonly(mt, true)
+    end,
+})
 
-RunService.RenderStepped:Connect(function()
-    Circle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-    Circle.Radius = _G.FOV
-    Circle.Visible = _G.FOVCircleVisible
-    UpdateESP()
-end)
+-- 2. Infinite Swim
+MainTab:CreateToggle({
+    Name = "🏊 Infinite Swim",
+    CurrentValue = false,
+    Callback = function(Value)
+        _G.SwimActive = Value
+        if Value then
+            task.spawn(function()
+                local success, SwimController = pcall(function() return require(game.Players.LocalPlayer.PlayerScripts.Controllers.SwimController) end)
+                while _G.SwimActive and success and SwimController do
+                    SwimController._swimMeter = SwimController._meterMax
+                    task.wait(0.2)
+                end
+            end)
+        end
+    end,
+})
 
-local Window = Rayfield:CreateWindow({Name = "Apelsin Hub [Murder Duels]"})
-local MainTab = Window:CreateTab("Main")
-MainTab:CreateToggle({Name = "Silent Aim", Callback = function(v) _G.SilentAim = v end})
-MainTab:CreateSlider({Name = "FOV Size", Range = {50, 800}, Increment = 10, CurrentValue = 150, Callback = function(v) _G.FOV = v end})
-local VisTab = Window:CreateTab("Visuals")
-VisTab:CreateToggle({Name = "Enemy ESP (Lines)", Callback = function(v) _G.ESPEnabled = v end})
-VisTab:CreateToggle({Name = "Show FOV Circle", Callback = function(v) _G.FOVCircleVisible = v end})
+-- 3. Auto-Fill Bucket
+MainTab:CreateToggle({
+    Name = "💧 Auto-Fill Bucket",
+    Callback = function(Value)
+        _G.FillActive = Value
+        task.spawn(function()
+            while _G.FillActive do
+                local Event = game:GetService("ReplicatedStorage"):FindFirstChild("VerdantRemotes") and game:GetService("ReplicatedStorage").VerdantRemotes["VDT_Bucket.Used"]
+                if Event then Event:FireServer() end
+                task.wait(0.5)
+            end
+        end)
+    end,
+})
 
+-- 4. Auto-Pour
+MainTab:CreateToggle({
+    Name = "💧 Auto-Pour",
+    Callback = function(Value)
+        _G.PourActive = Value
+        task.spawn(function()
+            while _G.PourActive do
+                local Event = game:GetService("ReplicatedStorage"):FindFirstChild("VerdantRemotes") and game:GetService("ReplicatedStorage").VerdantRemotes["VDT_Bucket.Poured"]
+                if Event then
+                    pcall(function() Event:FireServer(workspace.Scripted.CheckpointParts["1"]:GetChildren()[2].Scripted.ProximityPosition.ProximityPrompt) end)
+                end
+                task.wait(0.5)
+            end
+        end)
+    end,
+})
+
+-- 5. Auto Chests
+MainTab:CreateToggle({
+    Name = "🎁 Auto Chests",
+    Callback = function(Value)
+        _G.ChestActive = Value
+        task.spawn(function()
+            while _G.ChestActive do
+                local chestsFolder = workspace:FindFirstChild("Scripted") and workspace.Scripted:FindFirstChild("Chests")
+                if chestsFolder then
+                    for _, chest in pairs(chestsFolder:GetChildren()) do
+                        if not _G.ChestActive then break end
+                        local prompt = chest:FindFirstChildWhichIsA("ProximityPrompt", true)
+                        if prompt and game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = chest:IsA("Model") and chest:GetPivot() or chest.CFrame
+                            task.wait(0.2)
+                            if prompt.Enabled then fireproximityprompt(prompt) end
+                            task.wait(0.5)
+                        end
+                    end
+                end
+                task.wait(1)
+            end
+        end)
+    end,
+})
+
+-- 6. Auto Tokens
+MainTab:CreateToggle({
+    Name = "🪙 Auto Tokens",
+    Callback = function(Value)
+        _G.TokenActive = Value
+        task.spawn(function()
+            while _G.TokenActive do
+                pcall(function() game:GetService("ReplicatedStorage").VerdantRemotes["VDT_Tokens.Take"]:FireServer(workspace.Scripted.CheckpointParts["1"]:GetChildren()[2].Scripted.ProximityPosition.ProximityPrompt) end)
+                task.wait(0.3)
+            end
+        end)
+    end,
+})
+
+Rayfield:Load() -- Обязательно для загрузки интерфейса
