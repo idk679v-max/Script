@@ -7,9 +7,9 @@ local Window = Rayfield:CreateWindow({
     Theme = "Default"
 })
 
-local MainTab = Window:CreateTab("Main", nil) -- Вкладка Main
+-- Вкладка Main
+local MainTab = Window:CreateTab("Main", nil)
 
--- 1. Instant Win
 MainTab:CreateButton({
     Name = "⚡ Instant Win",
     Callback = function()
@@ -25,10 +25,8 @@ MainTab:CreateButton({
     end,
 })
 
--- 2. Infinite Swim
 MainTab:CreateToggle({
     Name = "🏊 Infinite Swim",
-    CurrentValue = false,
     Callback = function(Value)
         _G.SwimActive = Value
         if Value then
@@ -43,7 +41,6 @@ MainTab:CreateToggle({
     end,
 })
 
--- 3. Auto-Fill Bucket
 MainTab:CreateToggle({
     Name = "💧 Auto-Fill Bucket",
     Callback = function(Value)
@@ -58,7 +55,6 @@ MainTab:CreateToggle({
     end,
 })
 
--- 4. Auto-Pour
 MainTab:CreateToggle({
     Name = "💧 Auto-Pour",
     Callback = function(Value)
@@ -75,7 +71,6 @@ MainTab:CreateToggle({
     end,
 })
 
--- 5. Auto Chests
 MainTab:CreateToggle({
     Name = "🎁 Auto Chests",
     Callback = function(Value)
@@ -101,7 +96,6 @@ MainTab:CreateToggle({
     end,
 })
 
--- 6. Auto Tokens
 MainTab:CreateToggle({
     Name = "🪙 Auto Tokens",
     Callback = function(Value)
@@ -115,5 +109,104 @@ MainTab:CreateToggle({
     end,
 })
 
-Rayfield:Load() -- Обязательно для загрузки интерфейса
+-- Вкладка Movement
+local MovementTab = Window:CreateTab("Movement", nil)
+local FlySpeed = 50
+_G.FlyEnabled = false
+_G.NoClipEnabled = false
 
+local function StartFly()
+    local player = game.Players.LocalPlayer
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local bg = Instance.new("BodyGyro", hrp)
+    bg.Name = "ApelsinGyro"
+    bg.MaxTorque = Vector3.new(1/0, 1/0, 1/0)
+    bg.P = 9000
+    bg.D = 100
+    
+    local bv = Instance.new("BodyVelocity", hrp)
+    bv.Name = "ApelsinFly"
+    bv.MaxForce = Vector3.new(1/0, 1/0, 1/0)
+    bv.Velocity = Vector3.new(0, 0, 0)
+
+    local UIS = game:GetService("UserInputService")
+    local control = {w = false, a = false, s = false, d = false}
+    
+    local conn1 = UIS.InputBegan:Connect(function(input, gpe)
+        if gpe then return end
+        if input.KeyCode == Enum.KeyCode.W then control.w = true
+        elseif input.KeyCode == Enum.KeyCode.A then control.a = true
+        elseif input.KeyCode == Enum.KeyCode.S then control.s = true
+        elseif input.KeyCode == Enum.KeyCode.D then control.d = true end
+    end)
+    
+    local conn2 = UIS.InputEnded:Connect(function(input)
+        if input.KeyCode == Enum.KeyCode.W then control.w = false
+        elseif input.KeyCode == Enum.KeyCode.A then control.a = false
+        elseif input.KeyCode == Enum.KeyCode.S then control.s = false
+        elseif input.KeyCode == Enum.KeyCode.D then control.d = false end
+    end)
+
+    task.spawn(function()
+        while _G.FlyEnabled do
+            local cam = workspace.CurrentCamera
+            local hum = player.Character and player.Character:FindFirstChild("Humanoid")
+            bg.CFrame = cam.CFrame
+            
+            local vel = Vector3.new(0, 0, 0)
+            if control.w or control.s or control.a or control.d then
+                if control.w then vel = vel + cam.CFrame.LookVector end
+                if control.s then vel = vel - cam.CFrame.LookVector end
+                if control.a then vel = vel - cam.CFrame.RightVector end
+                if control.d then vel = vel + cam.CFrame.RightVector end
+            elseif hum and hum.MoveDirection.Magnitude > 0 then
+                -- Стабильный расчет направления через VectorToObjectSpace
+                local relativeDir = cam.CFrame:VectorToObjectSpace(hum.MoveDirection)
+                vel = (cam.CFrame.LookVector * -relativeDir.Z) + (cam.CFrame.RightVector * relativeDir.X)
+            end
+            
+            bv.Velocity = vel * FlySpeed
+            task.wait()
+        end
+        if hrp:FindFirstChild("ApelsinFly") then hrp.ApelsinFly:Destroy() end
+        if hrp:FindFirstChild("ApelsinGyro") then hrp.ApelsinGyro:Destroy() end
+        conn1:Disconnect()
+        conn2:Disconnect()
+    end)
+end
+
+MovementTab:CreateToggle({
+    Name = "✈️ Fly (IY Style)",
+    Callback = function(Value)
+        _G.FlyEnabled = Value
+        if Value then StartFly() end
+    end,
+})
+
+MovementTab:CreateSlider({
+    Name = "Fly Speed",
+    Range = {10, 200},
+    Increment = 10,
+    CurrentValue = 50,
+    Callback = function(Value) FlySpeed = Value end,
+})
+
+MovementTab:CreateToggle({
+    Name = "👻 NoClip",
+    Callback = function(Value) _G.NoClipEnabled = Value end,
+})
+
+game:GetService("RunService").Stepped:Connect(function()
+    if _G.NoClipEnabled then
+        local char = game.Players.LocalPlayer.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = false end
+            end
+        end
+    end
+end)
+
+Rayfield:Load()
