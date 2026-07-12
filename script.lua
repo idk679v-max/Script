@@ -1,75 +1,57 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- 1. ОСНОВНОЕ ОКНО
+-- 1. Окно
 local ScreenGui = Instance.new("ScreenGui", PlayerGui)
 ScreenGui.Name = "ApelsinHub"
 
-local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 500, 0, 350)
-Main.Position = UDim2.new(0.5, -250, 0.5, -175)
-Main.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Main.Active = true
-Main.Draggable = true
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
-local Stroke = Instance.new("UIStroke", Main)
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 400, 0, 580) -- Увеличил размер для всех кнопок
+Frame.Position = UDim2.new(0.5, -200, 0.5, -290)
+Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Frame.Active = true
+Frame.Draggable = true 
+
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 16)
+local Stroke = Instance.new("UIStroke", Frame)
 Stroke.Color = Color3.fromRGB(255, 140, 0)
 Stroke.Thickness = 2
 
--- 2. ЛЕВАЯ ПАНЕЛЬ
-local TabBar = Instance.new("Frame", Main)
-TabBar.Size = UDim2.new(0, 130, 1, 0)
-TabBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Instance.new("UICorner", TabBar).CornerRadius = UDim.new(0, 10)
-
-local Title = Instance.new("TextLabel", TabBar)
-Title.Size = UDim2.new(1, 0, 0, 50)
-Title.Text = "🍊 Apelsin Hub"
-Title.TextColor3 = Color3.fromRGB(255, 140, 0)
+local Title = Instance.new("TextLabel", Frame)
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Text = "🍊 APELSIN HUB PRO"
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 14
+Title.TextSize = 18
+Title.TextColor3 = Color3.fromRGB(255, 140, 0)
 Title.BackgroundTransparency = 1
 
-local MainTab = Instance.new("TextButton", TabBar)
-MainTab.Size = UDim2.new(0.9, 0, 0, 40)
-MainTab.Position = UDim2.new(0.05, 0, 0, 60)
-MainTab.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-MainTab.Text = "📜 Main"
-MainTab.TextColor3 = Color3.new(1, 1, 1)
-Instance.new("UICorner", MainTab).CornerRadius = UDim.new(0, 6)
-
--- 3. КОНТЕНТ
-local Content = Instance.new("ScrollingFrame", Main)
-Content.Size = UDim2.new(1, -140, 1, -20)
-Content.Position = UDim2.new(0, 140, 0, 10)
-Content.BackgroundTransparency = 1
-Content.AutomaticCanvasSize = Enum.AutomaticSize.Y
-Instance.new("UIListLayout", Content).Padding = UDim.new(0, 8)
-
--- ФУНКЦИЯ КНОПОК С ИНДИКАТОРОМ
-local function createToggle(text, callback)
+-- 2. Функция для создания кнопок-переключателей
+local yOffset = 50
+local function createToggle(text, colorOff, callback)
     local active = false
-    local btn = Instance.new("TextButton", Content)
-    btn.Size = UDim2.new(1, -10, 0, 40)
-    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    btn.Text = text .. " [OFF]"
-    btn.Font = Enum.Font.Gotham
+    local btn = Instance.new("TextButton", Frame)
+    btn.Size = UDim2.new(0, 360, 0, 45)
+    btn.Position = UDim2.new(0, 20, 0, yOffset)
+    btn.BackgroundColor3 = colorOff
+    btn.Text = text .. " [ OFF ]"
+    btn.Font = Enum.Font.GothamSemibold
     btn.TextColor3 = Color3.new(1, 1, 1)
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
     
     btn.MouseButton1Click:Connect(function()
         active = not active
-        btn.Text = text .. (active and " [ON]" or " [OFF]")
-        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = active and Color3.fromRGB(255, 140, 0) or Color3.fromRGB(35, 35, 35)}):Play()
+        local targetColor = active and Color3.fromRGB(70, 180, 70) or colorOff
+        TweenService:Create(btn, TweenInfo.new(0.3), {BackgroundColor3 = targetColor}):Play()
+        btn.Text = active and text .. " [ ON ]" or text .. " [ OFF ]"
         callback(active)
     end)
+    yOffset = yOffset + 55
 end
 
--- 4. ЛОГИКА
-createToggle("⚡ Instant Win", function(on)
+-- 3. ВСЕ КНОПКИ (УНИФИЦИРОВАННЫЕ)
+createToggle("⚡ Instant Win", Color3.fromRGB(50, 50, 50), function(on)
     if on then
         local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if root then
@@ -83,20 +65,33 @@ createToggle("⚡ Instant Win", function(on)
     end
 end)
 
-createToggle("🏊 Infinite Swim", function(on)
-    pcall(function()
-        local SwimController = require(LocalPlayer.PlayerScripts.Controllers.SwimController)
-        if on then
-            SwimController._swimStep = function(self, ...) self._swimMeter = self._meterMax return self:_swimStep(...) end
-            SwimController._startDrown = function() end
-        end
+createToggle("🏊 Infinite Swim", Color3.fromRGB(80, 50, 120), function(on)
+    _G.SwimActive = on
+    
+    -- Загружаем контроллер один раз
+    local success, SwimController = pcall(function() 
+        return require(LocalPlayer.PlayerScripts.Controllers.SwimController) 
     end)
+    
+    if success and SwimController then
+        if on then
+            -- Метод подмены: мы не меняем функцию постоянно, 
+            -- а просто "замораживаем" переменную стамины через метатаблицу или прямое присвоение
+            task.spawn(function()
+                while _G.SwimActive do
+                    -- Просто принудительно ставим максимум, пока включено
+                    SwimController._swimMeter = SwimController._meterMax
+                    task.wait(0.2) 
+                end
+            end)
+        end
+    end
 end)
 
-createToggle("💧 Auto-Fill Bucket", function(on)
-    _G.Fill = on
+createToggle("💧 Auto-Fill Bucket", Color3.fromRGB(40, 80, 120), function(on)
+    _G.FillActive = on
     task.spawn(function()
-        while _G.Fill do
+        while _G.FillActive do
             local Event = game:GetService("ReplicatedStorage"):FindFirstChild("VerdantRemotes") and game:GetService("ReplicatedStorage").VerdantRemotes["VDT_Bucket.Used"]
             if Event then Event:FireServer() end
             task.wait(0.5)
@@ -104,28 +99,44 @@ createToggle("💧 Auto-Fill Bucket", function(on)
     end)
 end)
 
-createToggle("💧 Auto-Pour", function(on)
-    _G.Pour = on
+createToggle("💧 Auto-Pour", Color3.fromRGB(40, 80, 120), function(on)
+    _G.PourActive = on
     task.spawn(function()
-        while _G.Pour do
+        while _G.PourActive do
             local Event = game:GetService("ReplicatedStorage"):FindFirstChild("VerdantRemotes") and game:GetService("ReplicatedStorage").VerdantRemotes["VDT_Bucket.Poured"]
-            if Event then pcall(function() Event:FireServer(workspace.Scripted.CheckpointParts["1"]:GetChildren()[2].Scripted.ProximityPosition.ProximityPrompt) end) end
+            if Event then
+                pcall(function() Event:FireServer(workspace.Scripted.CheckpointParts["1"]:GetChildren()[2].Scripted.ProximityPosition.ProximityPrompt) end)
+            end
             task.wait(0.5)
         end
     end)
 end)
 
-createToggle("🎁 Auto Chests", function(on)
-    _G.Chest = on
+createToggle("🎁 Auto Chests", Color3.fromRGB(120, 80, 40), function(on)
+    _G.ChestActive = on
     task.spawn(function()
-        while _G.Chest do
-            for _, chest in pairs(workspace.Scripted.Chests:GetChildren()) do
-                if not _G.Chest then break end
-                local prompt = chest:FindFirstChildWhichIsA("ProximityPrompt", true)
-                if prompt then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = chest:IsA("Model") and chest:GetPivot() or chest.CFrame
-                    fireproximityprompt(prompt)
-                    task.wait(0.4)
+        while _G.ChestActive do
+            local chestsFolder = workspace:FindFirstChild("Scripted") and workspace.Scripted:FindFirstChild("Chests")
+            if chestsFolder then
+                for _, chest in pairs(chestsFolder:GetChildren()) do
+                    if not _G.ChestActive then break end
+                    
+                    local prompt = chest:FindFirstChildWhichIsA("ProximityPrompt", true)
+                    if prompt and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        -- Телепорт
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = chest:IsA("Model") and chest:GetPivot() or chest.CFrame
+                        
+                        -- Ждем, чтобы сервер обработал позицию
+                        task.wait(0.2)
+                        
+                        -- ПРАВИЛЬНЫЙ ВЫЗОВ:
+                        -- Мы не просто вызываем функцию, мы имитируем событие промпта
+                        if prompt.Enabled then
+                            fireproximityprompt(prompt)
+                        end
+                        
+                        task.wait(0.5) -- Пауза между сундуками
+                    end
                 end
             end
             task.wait(1)
@@ -133,34 +144,22 @@ createToggle("🎁 Auto Chests", function(on)
     end)
 end)
 
-createToggle("🪙 Auto Tokens", function(on)
-    _G.Token = on
+createToggle("🪙 Auto Tokens", Color3.fromRGB(120, 100, 40), function(on)
+    _G.TokenActive = on
     task.spawn(function()
-        while _G.Token do
+        while _G.TokenActive do
             pcall(function() game:GetService("ReplicatedStorage").VerdantRemotes["VDT_Tokens.Take"]:FireServer(workspace.Scripted.CheckpointParts["1"]:GetChildren()[2].Scripted.ProximityPosition.ProximityPrompt) end)
             task.wait(0.3)
         end
     end)
 end)
 
--- 5. КНОПКА ОТКРЫТИЯ/ЗАКРЫТИЯ
+-- 4. Кнопка скрыть
 local ToggleButton = Instance.new("TextButton", ScreenGui)
-ToggleButton.Size = UDim2.new(0, 50, 0, 50)
-ToggleButton.Position = UDim2.new(0, 20, 0, 20)
-ToggleButton.Text = "🍊"
-ToggleButton.TextSize = 24
+ToggleButton.Size = UDim2.new(0, 100, 0, 35)
+ToggleButton.Position = UDim2.new(0, 10, 0, 10)
+ToggleButton.Text = "🍊 UI"
 ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 10)
-local ToggleStroke = Instance.new("UIStroke", ToggleButton)
-ToggleStroke.Color = Color3.fromRGB(255, 140, 0)
-ToggleStroke.Thickness = 2
-
-ToggleButton.MouseButton1Click:Connect(function()
-    Main.Visible = not Main.Visible
-end)
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightShift then
-        Main.Visible = not Main.Visible
-    end
-end)
+ToggleButton.TextColor3 = Color3.fromRGB(255, 140, 0)
+Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 8)
+ToggleButton.MouseButton1Click:Connect(function() Frame.Visible = not Frame.Visible end)
