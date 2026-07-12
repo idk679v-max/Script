@@ -4,10 +4,12 @@ local Players = game:GetService("Players")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
+-- Настройки
 _G.SilentAim = false
 _G.ESPEnabled = false
 _G.FOVCircleVisible = false
 _G.FOV = 150
+_G.AimbotDistance = 500
 
 -- Визуальный круг FOV
 local Circle = Drawing.new("Circle")
@@ -26,21 +28,33 @@ local function UpdateESP()
             if not ESP_Objects[player] then
                 local box = Drawing.new("Square")
                 box.Visible = false
-                box.Color = Color3.new(1, 1, 1)
                 box.Thickness = 1
                 box.Filled = false
                 ESP_Objects[player] = box
+            end
+            
+            local box = ESP_Objects[player]
+            
+            -- Логика цветов ESP
+            if LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team then
+                box.Color = Color3.fromRGB(0, 120, 255) -- Синий (Союзник)
+            elseif LocalPlayer.Team ~= nil then
+                box.Color = Color3.fromRGB(255, 50, 50) -- Красный (Враг)
+            else
+                box.Color = Color3.fromRGB(255, 255, 255) -- Белый (Нет команд)
             end
             
             local rootPart = player.Character.HumanoidRootPart
             local pos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
             
             if _G.ESPEnabled and onScreen then
-                ESP_Objects[player].Visible = true
-                ESP_Objects[player].Size = Vector2.new(50, 80)
-                ESP_Objects[player].Position = Vector2.new(pos.X - 25, pos.Y - 40)
+                local distance = (rootPart.Position - Camera.CFrame.Position).Magnitude
+                local scale = 1000 / distance
+                box.Visible = true
+                box.Size = Vector2.new(4 * scale, 6 * scale)
+                box.Position = Vector2.new(pos.X - (2 * scale), pos.Y - (3 * scale))
             else
-                ESP_Objects[player].Visible = false
+                box.Visible = false
             end
         elseif ESP_Objects[player] then
             ESP_Objects[player]:Remove()
@@ -49,42 +63,15 @@ local function UpdateESP()
     end
 end
 
--- Silent Aim (Перехват выстрела)
+-- Silent Aim логика
 local mt = getrawmetatable(game)
 local oldNamecall = mt.__namecall
 setreadonly(mt, false)
-
 mt.__namecall = newcclosure(function(self, ...)
     local args = {...}
-    if _G.SilentAim and getnamecallmethod() == "FireServer" and self.Name == "WeaponEvent" then -- Имя эвента может отличаться!
-        -- Логика перенаправления пули на голову ближайшего игрока
+    if _G.SilentAim and getnamecallmethod() == "FireServer" then
         local target = nil
         local dist = _G.FOV
         for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
-                local pos, onScreen = Camera:WorldToViewportPoint(p.Character.Head.Position)
-                local d = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                if onScreen and d < dist then target = p.Character.Head; dist = d end
-            end
-        end
-        if target then args[1] = target.Position end
-    end
-    return oldNamecall(self, unpack(args))
-end)
-setreadonly(mt, true)
-
--- Цикл
-RunService.RenderStepped:Connect(function()
-    Circle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-    Circle.Radius = _G.FOV
-    Circle.Visible = _G.FOVCircleVisible
-    UpdateESP()
-end)
-
--- Интерфейс
-local Window = Rayfield:CreateWindow({Name = "Apelsin Hub"})
-local MainTab = Window:CreateTab("Main")
-MainTab:CreateToggle({Name = "Silent Aim", Callback = function(v) _G.SilentAim = v end})
-local VisTab = Window:CreateTab("Visuals")
-VisTab:CreateToggle({Name = "Enable ESP", Callback = function(v) _G.ESPEnabled = v end})
-VisTab:CreateToggle({Name = "Show FOV Circle", Callback = function(v) _G.FOVCircleVisible = v end})
+            if
+                    
